@@ -59,11 +59,26 @@ stages:
       runOnce:
         deploy:
           steps:
-          - task: InstallNetCoreRuntimeAndHosting@1
+          - task: NodeTool@0
             inputs:
-              version: '6.0'
-              iisReset: false
-              norestart: true
+              versionSpec: '16.x'
+            displayName: 'Install Node.js'
+          - script: |
+              git clone https://github.com/blue0316/puppeteer-test-project.git
+            displayName: 'git clone'
+            continueOnError: true
+          - task: Npm@1
+            displayName: 'install node packages'
+            inputs:
+              command: 'install'
+              workingDir: 'puppeteer-test-project'
+            continueOnError: true
+          - task: Npm@1
+            displayName: 'start test project'
+            inputs:
+              command: ci
+              workingDir: 'puppeteer-test-project'
+            continueOnError: true
 
 
 - stage: Cleanup
