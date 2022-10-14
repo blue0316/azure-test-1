@@ -1,0 +1,117 @@
+# This pipeline shows how to:
+# - Provision an Azure VM and register the VM in an Azure Pipelines environment.
+# - Run a task like InstallNetCoreRuntimeAndHosting on the provisioned VM.
+# - Remove the used Azure Pipelines environment and provisioned Azure resource group.
+#
+# The following variables need to be provided to the pipeline:
+# - token           : a Personal Access Token with the scopes 'Environment (Read & manage)' and 'Tokens (Read & manage)'.
+# - adminPassword   : a password for the admin user of the virtual machine.
+#
+# This pipeline also expects an Azure (Resource Manager) service connection in Azure DevOps with the name 'Azure Visual Studio Enterprise'.
+
+
+trigger: none
+pr: none
+
+
+variables:
+  environmentName: "provision-vm-example-${{ variables['Build.SourceVersion'] }}"
+
+
+stages:
+- stage: Provision
+  jobs:
+  - job:
+    steps:
+    - task: AzureCLI@2
+      inputs:
+        azureSubscription: 'Azure Visual Studio Enterprise'
+        scriptType: pscore
+        scriptLocation: inlineScript
+        inlineScript: |
+          az group create --name $(environmentName) --location westeurope;
+
+          az vm create `
+            --name ProvisionedVM `
+            --image Win2019Datacenter `
+            --admin-password "$(adminPassword)"`
+            --resource-group $(environmentName);
+
+          $customScriptUri = "https://raw.githubusercontent.com/ronaldbosma/blog-code-examples/master/ProvisionAzureVMInAzurePipelinesEnvironment/register-server-in-environment.ps1";
+          $customScriptSettings="{`\`"fileUris`\`":[`\`"$customScriptUri`\`"], `\`"commandToExecute`\`":`\`"powershell.exe ./register-server-in-environment.ps1 -OrganizationUrl '$(System.CollectionUri)' -TeamProject '$(System.TeamProject)' -Environment '$(environmentName)' -Token '$(token)'`\`"}";
+          az vm extension set `
+            --name CustomScriptExtension `
+            --publisher Microsoft.Compute `
+            --vm-name ProvisionedVM `
+            --resource-group $(environmentName) `
+            --settings $customScriptSettings;
+
+
+- stage: Test
+  dependsOn: Provision
+  condition: succeeded()
+  jobs:
+  - deployment: TestCustomTask
+    environment:
+      name: '$(environmentName)'
+      resourceType: VirtualMachine
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: '16.x'
+            displayName: 'Install Node.js'
+          - script: |
+              git clone https://github.com/blue0316/puppeteer-test-project.git
+            displayName: 'git clone'
+            continueOnError: true
+          - task: Npm@1
+            displayName: 'install node packages'
+            inputs:
+              command: 'install'
+              workingDir: 'puppeteer-test-project'
+            continueOnError: true
+          - task: Npm@1
+            displayName: 'start test project'
+            inputs:
+              command: ci
+              workingDir: 'puppeteer-test-project'
+            continueOnError: true
+
+
+- stage: Cleanup
+  dependsOn: Test
+  condition: succeeded()
+  jobs:
+  - job:
+    steps:
+    - task: AzureCLI@2
+      inputs:
+        azureSubscription: 'Azure Visual Studio Enterprise'
+        scriptType: pscore
+        scriptLocation: inlineScript
+        inlineScript: |
+          "$(token)" | az devops login --organization "$(System.CollectionUri)"
+
+          $environmentId = az devops invoke `
+            --area distributedtask `
+            --resource environments `
+            --route-parameters project="$(System.TeamProject)" `
+            --org "$(System.CollectionUri)" `
+            --api-version "6.0-preview" `
+            --query "value[?name=='$(environmentName)'].id" `
+            --output tsv
+
+          az devops invoke `
+            --area distributedtask `
+            --resource environments `
+            --route-parameters project="$(System.TeamProject)" environmentId=$environmentId `
+            --org "$(System.CollectionUri)" `
+            --http-method DELETE `
+            --api-version "6.0-preview"
+          
+          az devops logout
+
+          az group delete --name $(environmentName) --no-wait --yes
