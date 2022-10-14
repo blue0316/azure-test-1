@@ -38,7 +38,12 @@ stages:
             --location japaneast `
             --generate-ssh-keys `
             --resource-group $(environmentName);
-
+    - task: AzureCLI@2
+      inputs:
+        azureSubscription: 'MyAzureSubscription(f75e5af2-ade0-444e-8b38-221f69cbc9d8)'
+        scriptType: pscore
+        scriptLocation: inlineScript
+        inlineScript: |
           $customScriptUri = "https://raw.githubusercontent.com/blue0316/azure-pipeline-puppeteer/master/register-server-in-environment.sh";
           $customScriptSettings="{`\`"fileUris`\`":[`\`"$customScriptUri`\`"], `\`"commandToExecute`\`":`\`"sh ./register-server-in-environment.sh -OrganizationUrl '$(System.CollectionUri)' -TeamProject '$(System.TeamProject)' -Environment '$(environmentName)' -Token '$(token)'`\`"}";
           az vm extension set `
