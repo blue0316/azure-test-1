@@ -25,7 +25,7 @@ stages:
     steps:
     - task: AzureCLI@2
       inputs:
-        azureSubscription: 'Azure Visual Studio Enterprise'
+        azureSubscription: 'MyAzureSubscription'
         scriptType: pscore
         scriptLocation: inlineScript
         inlineScript: |
