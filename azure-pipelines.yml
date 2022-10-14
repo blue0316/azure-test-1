@@ -10,13 +10,14 @@
 # This pipeline also expects an Azure (Resource Manager) service connection in Azure DevOps with the name 'MyAzureSubscription(f75e5af2-ade0-444e-8b38-221f69cbc9d8)'.
 
 
-trigger: none
-pr: none
+trigger:
+- main
 
+pool:
+  vmImage: ubuntu-latest
 
 variables:
   environmentName: "provision-vm-example-0002"
-
 
 stages:
 - stage: Provision
@@ -36,13 +37,7 @@ stages:
         scriptType: pscore
         scriptLocation: inlineScript
         inlineScript: |
-          az vm create `
-            --name ProvisionedVM `
-            --image UbuntuLTS `
-            --admin-username azureuser `
-            --location japaneast `
-            --generate-ssh-keys `
-            --resource-group $(environmentName);
+          az vm create --name ProvisionedVM --image UbuntuLTS --admin-username azureuser --location japaneast --generate-ssh-keys --resource-group $(environmentName);
     - task: AzureCLI@2
       inputs:
         azureSubscription: 'MyAzureSubscription(f75e5af2-ade0-444e-8b38-221f69cbc9d8)'
