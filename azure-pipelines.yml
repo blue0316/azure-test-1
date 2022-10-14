@@ -15,7 +15,7 @@ pr: none
 
 
 variables:
-  environmentName: "provision-vm-example-${{ variables['Build.SourceVersion'] }}"
+  environmentName: "provision-vm-example-0002"
 
 
 stages:
