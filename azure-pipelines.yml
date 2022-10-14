@@ -25,7 +25,7 @@ stages:
     steps:
     - task: AzureCLI@2
       inputs:
-        azureSubscription: 'MyAzureSubscription'
+        azureSubscription: 'MyAzureSubscription(f75e5af2-ade0-444e-8b38-221f69cbc9d8)'
         scriptType: pscore
         scriptLocation: inlineScript
         inlineScript: |
